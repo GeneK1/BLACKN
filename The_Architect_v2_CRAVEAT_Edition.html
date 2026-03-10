@@ -1,0 +1,2901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Architect — Requirements Synthesis Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0D0F1A;
+            --bg-surface: #12152B;
+            --bg-card: #1A1D35;
+            --bg-card-hover: #20243E;
+            --purple-primary: #7C3AED;
+            --purple-hover: #8B5CF6;
+            --purple-light: #A78BFA;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-purple: rgba(124, 58, 237, 0.2);
+            --border-subtle: #1E2240;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-card);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--purple-primary);
+            border-radius: 3px;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 64px;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-purple);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--purple-primary), #6D28D9);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-logo svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+        }
+
+        .nav-item {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            color: var(--text-muted);
+        }
+
+        .nav-item:hover {
+            background: rgba(124, 58, 237, 0.1);
+            color: var(--purple-light);
+        }
+
+        .nav-item.active {
+            background: var(--purple-primary);
+            color: white;
+        }
+
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .nav-tooltip {
+            position: absolute;
+            left: 60px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-purple);
+            z-index: 1000;
+        }
+
+        .nav-item:hover .nav-tooltip {
+            opacity: 1;
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            margin-left: 64px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            height: 64px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-purple);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--purple-light), var(--purple-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .breadcrumb-item {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .breadcrumb-item.active {
+            color: var(--purple-light);
+        }
+
+        .breadcrumb-separator {
+            color: var(--text-muted);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+        }
+
+        .header-icon:hover {
+            background: var(--bg-card-hover);
+            color: var(--purple-light);
+        }
+
+        .header-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--purple-primary), #6D28D9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--border-purple);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Step Content */
+        .step-content {
+            display: none;
+            animation: fadeSlideIn 0.3s ease;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes staggerFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Step 1 - Input */
+        .tabs-container {
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.25rem;
+            background: var(--bg-surface);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+        .tab-btn.active {
+            background: var(--purple-primary);
+            color: white;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .input-card {
+            padding: 1.5rem;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 1rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all 0.2s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: rgba(124, 58, 237, 0.5);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+
+        textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        .file-upload {
+            border: 2px dashed var(--border-purple);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 1rem;
+        }
+
+        .file-upload:hover {
+            background: rgba(124, 58, 237, 0.08);
+            border-color: var(--purple-primary);
+        }
+
+        .file-upload svg {
+            width: 48px;
+            height: 48px;
+            color: var(--purple-primary);
+            margin-bottom: 1rem;
+        }
+
+        .file-upload-text {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .file-upload-text span {
+            color: var(--purple-light);
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--purple-primary), #6D28D9);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            transition: all 0.2s ease;
+            margin-top: 1.5rem;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-primary svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Step 2 - Extract */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            padding: 1.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            opacity: 0.1;
+            transform: translate(20px, -20px);
+        }
+
+        .stat-card.purple::before {
+            background: var(--purple-primary);
+        }
+
+        .stat-card.green::before {
+            background: var(--success);
+        }
+
+        .stat-card.blue::before {
+            background: #3B82F6;
+        }
+
+        .stat-icon {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-icon.purple {
+            background: rgba(124, 58, 237, 0.2);
+            color: var(--purple-light);
+        }
+
+        .stat-icon.green {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .stat-icon.blue {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60A5FA;
+        }
+
+        .stat-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1rem;
+        }
+
+        .category-card {
+            border-left: 4px solid;
+            padding: 1.25rem;
+        }
+
+        .category-card.metrics { border-left-color: var(--purple-primary); }
+        .category-card.roles { border-left-color: var(--success); }
+        .category-card.sources { border-left-color: #3B82F6; }
+        .category-card.features { border-left-color: var(--warning); }
+        .category-card.constraints { border-left-color: var(--danger); }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .category-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .category-count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-surface);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+        }
+
+        .requirement-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-surface);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            animation: staggerFadeIn 0.3s ease backwards;
+        }
+
+        .requirement-item:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .requirement-content {
+            flex: 1;
+        }
+
+        .requirement-text {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .requirement-text input {
+            background: transparent;
+            border: none;
+            color: inherit;
+            font: inherit;
+            width: 100%;
+        }
+
+        .requirement-text input:focus {
+            outline: none;
+        }
+
+        .confidence-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .confidence-badge.high {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .confidence-badge.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .confidence-badge.low {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .requirement-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .action-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: var(--bg-card);
+        }
+
+        .action-btn.resolve:hover {
+            color: var(--success);
+        }
+
+        .action-btn.flag:hover {
+            color: var(--warning);
+        }
+
+        .action-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Step 3 - Refine */
+        .refine-container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 1.5rem;
+            height: calc(100vh - 140px);
+        }
+
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-progress {
+            height: 4px;
+            background: var(--bg-surface);
+            border-radius: 2px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .chat-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--purple-primary), var(--purple-light));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chat-message {
+            max-width: 85%;
+            animation: fadeSlideIn 0.3s ease;
+        }
+
+        .chat-message.ai {
+            align-self: flex-start;
+        }
+
+        .chat-message.user {
+            align-self: flex-end;
+        }
+
+        .chat-bubble {
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        .chat-message.ai .chat-bubble {
+            background: var(--bg-card);
+            border-left: 3px solid var(--purple-primary);
+            color: var(--text-primary);
+        }
+
+        .chat-message.user .chat-bubble {
+            background: linear-gradient(135deg, var(--purple-primary), var(--purple-hover));
+            color: white;
+        }
+
+        .chat-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .chat-message.user .chat-time {
+            text-align: right;
+        }
+
+        .chat-input-container {
+            padding: 1rem;
+            background: var(--bg-surface);
+            border-radius: 12px;
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.875rem;
+        }
+
+        .chat-input:focus {
+            outline: none;
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .btn-ghost {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--border-purple);
+            color: var(--text-primary);
+        }
+
+        .btn-send {
+            padding: 0.5rem 1rem;
+            background: var(--purple-primary);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-send:hover {
+            background: var(--purple-hover);
+        }
+
+        .btn-send svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .sidebar-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .panel-card {
+            padding: 1rem;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .panel-header svg {
+            width: 18px;
+            height: 18px;
+            color: var(--purple-light);
+        }
+
+        .panel-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .panel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .panel-item {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 0.5rem;
+            background: var(--bg-surface);
+            border-radius: 6px;
+        }
+
+        .btn-generate {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--purple-primary), #6D28D9);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            margin-top: auto;
+        }
+
+        .btn-generate:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-generate:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-generate svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Step 4 - PRD */
+        .prd-hero {
+            background: linear-gradient(135deg, var(--purple-primary) 0%, #4F46E5 100%);
+            border-radius: 14px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .prd-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .prd-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .prd-meta {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .prd-meta-pill {
+            padding: 0.375rem 0.75rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .prd-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-export {
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-purple);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-export:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--purple-primary);
+        }
+
+        .btn-export svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .prd-sections {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .prd-section {
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .section-header:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section-icon.purple {
+            background: rgba(124, 58, 237, 0.2);
+            color: var(--purple-light);
+        }
+
+        .section-icon.green {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .section-icon.blue {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60A5FA;
+        }
+
+        .section-icon.orange {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .section-title {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .section-chevron {
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+
+        .section-chevron svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .prd-section.open .section-chevron {
+            transform: rotate(180deg);
+        }
+
+        .section-content {
+            display: none;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .prd-section.open .section-content {
+            display: block;
+        }
+
+        .section-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .section-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .section-list li {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            padding-left: 1.25rem;
+            position: relative;
+        }
+
+        .section-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+            width: 6px;
+            height: 6px;
+            background: var(--purple-primary);
+            border-radius: 50%;
+        }
+
+        .prd-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .prd-table th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .prd-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .prd-table tr:nth-child(even) td {
+            background: var(--bg-surface);
+        }
+
+        .prd-table tr:hover td {
+            background: var(--bg-card-hover);
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .priority-badge.high {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .priority-badge.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .priority-badge.low {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 4000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toast {
+            padding: 1rem 1.25rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-purple);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: toastSlideIn 0.3s ease;
+            min-width: 280px;
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .toast.success .toast-icon {
+            color: var(--success);
+        }
+
+        .toast.warning .toast-icon {
+            color: var(--warning);
+        }
+
+        .toast.error .toast-icon {
+            color: var(--danger);
+        }
+
+        .toast-message {
+            font-size: 0.875rem;
+            flex: 1;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(13, 15, 26, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-ring {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--bg-card);
+            border-top-color: var(--purple-primary);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.7;
+            }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .refine-container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar-panel {
+                flex-direction: row;
+            }
+
+            .panel-card {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .categories-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs-container {
+                flex-wrap: wrap;
+            }
+
+            .tab-btn {
+                flex: 1 1 45%;
+            }
+        }
+
+        /* ===== SETTINGS MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(13, 15, 26, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal-container {
+            background: var(--bg-card);
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            border-radius: 18px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.1);
+            width: 480px;
+            max-width: calc(100vw - 2rem);
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(16px) scale(0.97);
+            transition: transform 0.25s ease, opacity 0.25s ease;
+            opacity: 0;
+        }
+        .modal-overlay.active .modal-container {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem 1.5rem 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            color: var(--text-primary);
+        }
+        .modal-title svg {
+            width: 20px;
+            height: 20px;
+            color: var(--purple-light);
+        }
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--bg-surface);
+            border-radius: 8px;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .modal-close:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+        .modal-close svg { width: 16px; height: 16px; }
+        .modal-body {
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+        .settings-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
+        }
+        .settings-section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .settings-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .settings-sublabel {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.125rem;
+        }
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+        .toggle-track {
+            position: absolute;
+            inset: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 16px;
+            height: 16px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+        .toggle-switch input:checked + .toggle-track {
+            background: rgba(124, 58, 237, 0.3);
+            border-color: var(--purple-primary);
+        }
+        .toggle-switch input:checked + .toggle-track::after {
+            transform: translateX(20px);
+            background: var(--purple-primary);
+        }
+        /* Select Dropdown */
+        .settings-select {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.875rem;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 140px;
+        }
+        .settings-select:focus {
+            outline: none;
+            border-color: rgba(124, 58, 237, 0.5);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+        /* Slider */
+        .settings-slider-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+            justify-content: flex-end;
+        }
+        .settings-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 120px;
+            height: 4px;
+            background: var(--bg-surface);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        .settings-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--purple-primary);
+            cursor: pointer;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+            transition: box-shadow 0.2s ease;
+        }
+        .settings-slider::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 0 5px rgba(124, 58, 237, 0.3);
+        }
+        .slider-value {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--purple-light);
+            min-width: 36px;
+            text-align: right;
+        }
+        /* Checkbox group */
+        .checkbox-group {
+            display: flex;
+            gap: 0.75rem;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--purple-primary);
+            cursor: pointer;
+        }
+        .modal-footer {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem 1.5rem;
+            border-top: 1px solid var(--border-subtle);
+            justify-content: flex-end;
+        }
+        .btn-modal-cancel {
+            padding: 0.625rem 1.25rem;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-modal-cancel:hover {
+            border-color: var(--border-purple);
+            color: var(--text-primary);
+        }
+        .btn-modal-save {
+            padding: 0.625rem 1.5rem;
+            background: linear-gradient(135deg, var(--purple-primary), #6D28D9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-modal-save:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
+        }
+        .btn-modal-save svg { width: 16px; height: 16px; }
+
+        /* ===== NOTIFICATIONS PANEL ===== */
+        .notif-wrapper {
+            position: relative;
+        }
+        .notif-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 18px;
+            height: 18px;
+            background: var(--danger);
+            border-radius: 50%;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--bg-surface);
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+        .notif-badge.hidden { display: none; }
+        .notif-panel {
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            width: 340px;
+            background: var(--bg-card);
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            border-radius: 14px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+            z-index: 2000;
+            overflow: hidden;
+            transform-origin: top right;
+            transform: scaleY(0.85) translateY(-8px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .notif-panel.active {
+            transform: scaleY(1) translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+        .notif-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.125rem 0.75rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .notif-panel-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .notif-unread-count {
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(124, 58, 237, 0.2);
+            color: var(--purple-light);
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+        }
+        .notif-list {
+            max-height: 320px;
+            overflow-y: auto;
+            padding: 0.5rem 0;
+        }
+        .notif-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem 1.125rem;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            position: relative;
+        }
+        .notif-item:hover { background: var(--bg-card-hover); }
+        .notif-item.unread::before {
+            content: '';
+            position: absolute;
+            left: 0.375rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            background: var(--purple-primary);
+            border-radius: 50%;
+        }
+        .notif-icon-wrap {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .notif-icon-wrap svg { width: 16px; height: 16px; }
+        .notif-icon-wrap.success { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .notif-icon-wrap.purple { background: rgba(124, 58, 237, 0.15); color: var(--purple-light); }
+        .notif-icon-wrap.warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .notif-icon-wrap.blue { background: rgba(59, 130, 246, 0.15); color: #60A5FA; }
+        .notif-body { flex: 1; min-width: 0; }
+        .notif-msg {
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            line-height: 1.4;
+            margin-bottom: 0.25rem;
+        }
+        .notif-item.unread .notif-msg { font-weight: 500; }
+        .notif-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .notif-panel-footer {
+            padding: 0.75rem 1.125rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+        .btn-mark-all {
+            width: 100%;
+            padding: 0.5rem;
+            background: transparent;
+            border: 1px solid var(--border-purple);
+            border-radius: 8px;
+            color: var(--purple-light);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-mark-all:hover {
+            background: rgba(124, 58, 237, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-item active" data-step="1" onclick="goToStep(1)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+                        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+                    </svg>
+                    <span class="nav-tooltip">Input</span>
+                </div>
+                <div class="nav-item" data-step="2" onclick="goToStep(2)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/>
+                    </svg>
+                    <span class="nav-tooltip">Extract</span>
+                </div>
+                <div class="nav-item" data-step="3" onclick="goToStep(3)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span class="nav-tooltip">Refine</span>
+                </div>
+                <div class="nav-item" data-step="4" onclick="goToStep(4)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                    <span class="nav-tooltip">PRD</span>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Wrapper -->
+        <div class="main-wrapper">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <span class="header-title">The Architect</span>
+                </div>
+                <div class="breadcrumb">
+                    <span class="breadcrumb-item active" id="breadcrumb-1">Input</span>
+                    <span class="breadcrumb-separator">→</span>
+                    <span class="breadcrumb-item" id="breadcrumb-2">Extract</span>
+                    <span class="breadcrumb-separator">→</span>
+                    <span class="breadcrumb-item" id="breadcrumb-3">Refine</span>
+                    <span class="breadcrumb-separator">→</span>
+                    <span class="breadcrumb-item" id="breadcrumb-4">PRD</span>
+                </div>
+                <div class="header-right">
+                    <div class="notif-wrapper" id="notifWrapper">
+                        <div class="header-icon" id="notifBtn" onclick="toggleNotifPanel(event)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                        </div>
+                        <span class="notif-badge" id="notifBadge">3</span>
+                        <!-- Notifications Panel -->
+                        <div class="notif-panel" id="notifPanel">
+                            <div class="notif-panel-header">
+                                <span class="notif-panel-title">Notifications</span>
+                                <span class="notif-unread-count" id="notifUnreadCount">3 unread</span>
+                            </div>
+                            <div class="notif-list" id="notifList">
+                                <!-- populated by JS -->
+                            </div>
+                            <div class="notif-panel-footer">
+                                <button class="btn-mark-all" onclick="markAllRead()">Mark all as read</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="header-icon" id="settingsBtn" onclick="openSettings()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </div>
+                    <div class="avatar">TA</div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Step 1: Input -->
+                <div class="step-content active" id="step-1">
+                    <div class="tabs-container">
+                        <button class="tab-btn active" data-tab="raw" onclick="switchTab('raw')">Raw Input</button>
+                        <button class="tab-btn" data-tab="stakeholder" onclick="switchTab('stakeholder')">Stakeholder Notes</button>
+                        <button class="tab-btn" data-tab="transcript" onclick="switchTab('transcript')">Transcript</button>
+                        <button class="tab-btn" data-tab="draft" onclick="switchTab('draft')">Requirements Draft</button>
+                    </div>
+
+                    <div class="card input-card">
+                        <div class="tab-panel active" id="panel-raw">
+                            <label class="input-label">Paste Slack messages, meeting notes, or any raw input</label>
+                            <textarea id="rawInput" placeholder="Paste your raw input here..."></textarea>
+                        </div>
+                        <div class="tab-panel" id="panel-stakeholder">
+                            <label class="input-label">Stakeholder interview notes and feedback</label>
+                            <textarea id="stakeholderInput" placeholder="Enter stakeholder notes..."></textarea>
+                        </div>
+                        <div class="tab-panel" id="panel-transcript">
+                            <label class="input-label">Meeting transcripts or call recordings</label>
+                            <textarea id="transcriptInput" placeholder="Paste transcript here..."></textarea>
+                        </div>
+                        <div class="tab-panel" id="panel-draft">
+                            <label class="input-label">Existing requirements or specification drafts</label>
+                            <textarea id="draftInput" placeholder="Enter existing requirements..."></textarea>
+                        </div>
+
+                        <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <p class="file-upload-text">
+                                <span>Click to upload</span> or drag and drop<br>
+                                PDF, DOCX, TXT, or JSON files
+                            </p>
+                            <input type="file" id="fileInput" style="display: none" accept=".pdf,.docx,.txt,.json" onchange="handleFileUpload(event)">
+                        </div>
+
+                        <button class="btn-primary" onclick="analyzeAndExtract()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/>
+                            </svg>
+                            Analyze & Extract Requirements
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Extract -->
+                <div class="step-content" id="step-2">
+                    <div class="stats-grid">
+                        <div class="card stat-card purple">
+                            <div class="stat-icon purple">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                            </div>
+                            <div class="stat-value" id="totalExtracted">0</div>
+                            <div class="stat-label">Total Extracted</div>
+                        </div>
+                        <div class="card stat-card green">
+                            <div class="stat-icon green">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                </svg>
+                            </div>
+                            <div class="stat-value" id="highConfidence">0</div>
+                            <div class="stat-label">High Confidence</div>
+                        </div>
+                        <div class="card stat-card blue">
+                            <div class="stat-icon blue">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="7" height="7"/>
+                                    <rect x="14" y="3" width="7" height="7"/>
+                                    <rect x="14" y="14" width="7" height="7"/>
+                                    <rect x="3" y="14" width="7" height="7"/>
+                                </svg>
+                            </div>
+                            <div class="stat-value" id="categoriesCount">5</div>
+                            <div class="stat-label">Categories</div>
+                        </div>
+                    </div>
+
+                    <div class="categories-grid" id="categoriesGrid">
+                        <!-- Categories will be populated by JavaScript -->
+                    </div>
+
+                    <button class="btn-primary" onclick="goToStep(3)" style="margin-top: 1.5rem;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        Continue to Refinement
+                    </button>
+                </div>
+
+                <!-- Step 3: Refine -->
+                <div class="step-content" id="step-3">
+                    <div class="refine-container">
+                        <div class="card chat-panel">
+                            <div class="chat-progress">
+                                <div class="chat-progress-bar" id="chatProgress" style="width: 0%"></div>
+                            </div>
+                            <div class="chat-messages" id="chatMessages">
+                                <!-- Chat messages will be populated by JavaScript -->
+                            </div>
+                            <div class="chat-input-container">
+                                <input type="text" class="chat-input" id="chatInput" placeholder="Type your response..." onkeypress="handleChatKeypress(event)">
+                                <button class="btn-ghost" onclick="skipQuestion()">Skip</button>
+                                <button class="btn-send" onclick="sendChatMessage()">
+                                    Send
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="22" y1="2" x2="11" y2="13"/>
+                                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="sidebar-panel">
+                            <div class="card panel-card">
+                                <div class="panel-header">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                    <span class="panel-title">Answered Questions</span>
+                                </div>
+                                <div class="panel-list" id="answeredList">
+                                    <div class="empty-state">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <line x1="12" y1="8" x2="12" y2="12"/>
+                                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                        </svg>
+                                        <p>No questions answered yet</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card panel-card">
+                                <div class="panel-header">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                                        <line x1="4" y1="22" x2="4" y2="15"/>
+                                    </svg>
+                                    <span class="panel-title">Flagged Items</span>
+                                </div>
+                                <div class="panel-list" id="flaggedList">
+                                    <div class="empty-state">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                                            <line x1="4" y1="22" x2="4" y2="15"/>
+                                        </svg>
+                                        <p>No flagged items</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button class="btn-generate" id="generatePrdBtn" onclick="generatePRD()" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                </svg>
+                                Generate PRD
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: PRD -->
+                <div class="step-content" id="step-4">
+                    <div class="prd-hero">
+                        <h1 class="prd-title">Sales Dashboard Redesign PRD</h1>
+                        <p class="prd-subtitle">Product Requirements Document • Auto-generated from synthesis</p>
+                        <div class="prd-meta">
+                            <span class="prd-meta-pill">Version 1.0</span>
+                            <span class="prd-meta-pill" id="prdDate">Generated Today</span>
+                            <span class="prd-meta-pill" id="prdReqCount">0 Requirements</span>
+                        </div>
+                    </div>
+
+                    <div class="prd-actions">
+                        <button class="btn-export" onclick="exportPRD('markdown')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Export Markdown
+                        </button>
+                        <button class="btn-export" onclick="exportPRD('json')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Export JSON
+                        </button>
+                        <button class="btn-export" onclick="copyPRD()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                            </svg>
+                            Copy to Clipboard
+                        </button>
+                    </div>
+
+                    <div class="prd-sections" id="prdSections">
+                        <!-- PRD sections will be populated by JavaScript -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal" onclick="handleModalOverlayClick(event)">
+        <div class="modal-container" id="settingsModalContainer">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                    Settings
+                </div>
+                <button class="modal-close" onclick="closeSettings()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Notifications Preferences -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Notification Preferences</div>
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">Extraction Alerts</div>
+                            <div class="settings-sublabel">Notify when requirements are extracted</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="setting-notif-extraction" checked>
+                            <span class="toggle-track"></span>
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">PRD Generation Alerts</div>
+                            <div class="settings-sublabel">Notify when PRD is ready</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="setting-notif-prd" checked>
+                            <span class="toggle-track"></span>
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">System Messages</div>
+                            <div class="settings-sublabel">Show system-level notifications</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="setting-notif-system">
+                            <span class="toggle-track"></span>
+                        </label>
+                    </div>
+                </div>
+                <!-- Dashboard -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Dashboard</div>
+                    <div class="settings-row">
+                        <div class="settings-label">Refresh Rate</div>
+                        <select class="settings-select" id="setting-refresh">
+                            <option value="realtime">Real-time</option>
+                            <option value="5min">Every 5 min</option>
+                            <option value="15min">Every 15 min</option>
+                            <option value="30min">Every 30 min</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Export -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Export Preferences</div>
+                    <div class="settings-row">
+                        <div class="settings-label">Default Export Format</div>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="setting-export-md" checked> Markdown
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="setting-export-pdf"> PDF
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <!-- Confidence Threshold -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Extraction Quality</div>
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">Confidence Threshold</div>
+                            <div class="settings-sublabel">Filter requirements below this level</div>
+                        </div>
+                        <div class="settings-slider-wrap">
+                            <input type="range" class="settings-slider" id="setting-confidence" min="50" max="100" value="70" oninput="document.getElementById('confidenceVal').textContent = this.value + '%'">
+                            <span class="slider-value" id="confidenceVal">70%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeSettings()">Cancel</button>
+                <button class="btn-modal-save" onclick="saveSettings()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-ring"></div>
+    </div>
+
+    <script>
+        // State Management
+        let currentStep = 1;
+        let activeTab = 'raw';
+        let extractedRequirements = {
+            metrics: [],
+            roles: [],
+            sources: [],
+            features: [],
+            constraints: []
+        };
+        let chatQuestions = [];
+        let currentQuestionIndex = 0;
+        let answeredQuestions = [];
+        let flaggedItems = [];
+
+        // Sample Data
+        const sampleData = `#sales-dashboard channel - Last 2 weeks
+
+Sarah (Sales Director) - Monday 9:15 AM:
+The current dashboard is basically useless. I need to see our pipeline at a glance - total deals, expected close dates, and which reps are hitting quota. Right now I'm exporting to Excel every morning just to get a clear picture.
+
+Mike (Sales Rep) - Monday 9:32 AM:
+@Sarah totally agree. Also would be great to see my personal stats vs team average. And can we get mobile access? I'm on the road 60% of the time.
+
+Sarah - Monday 9:45 AM:
+Mobile is a must. Also @Jennifer from Finance keeps asking me for conversion rate by lead source. We should surface that.
+
+Jennifer (Finance) - Monday 2:15 PM:
+Yes! I need conversion rates broken down by: 1) lead source, 2) sales rep, 3) deal size bucket. Also revenue forecasting - current quarter vs next quarter projections.
+
+Tom (VP Sales) - Tuesday 10:00 AM:
+Team, exec meeting Friday. I need to present:
+- YTD revenue vs target
+- Top 10 deals in pipeline with probability scores
+- Rep performance ranking
+- Churn risk for existing accounts
+Can the new dashboard support this?
+
+Sarah - Tuesday 10:22 AM:
+@Tom we also discussed territory mapping last week. The midwest region data is all over the place.
+
+DevOps Bot - Tuesday 3:00 PM:
+Reminder: Current dashboard loads in 8.2 seconds avg. Target is under 3 seconds.
+
+Mike - Wednesday 11:00 AM:
+Feature request: email alerts when deals move stages or go cold (no activity 7+ days)
+
+Jennifer - Wednesday 4:30 PM:
+Need audit trail - who changed what deal values and when. Compliance is asking.
+
+Meeting Notes - Thursday Standup:
+- Dashboard redesign priority: HIGH
+- Deadline discussed: End of Q2
+- Budget: Need to confirm with Tom
+- Integration needed with Salesforce (current CRM)
+- Historical data: minimum 2 years for trends
+- User access levels: Rep view vs Manager view vs Exec view`;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('rawInput').value = sampleData;
+            updateBreadcrumb();
+            updateNotifBadge();
+        });
+
+        // Navigation
+        function goToStep(step) {
+            if (step < 1 || step > 4) return;
+            
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`step-${step}`).classList.add('active');
+            document.querySelector(`.nav-item[data-step="${step}"]`).classList.add('active');
+            
+            currentStep = step;
+            updateBreadcrumb();
+        }
+
+        function updateBreadcrumb() {
+            for (let i = 1; i <= 4; i++) {
+                const el = document.getElementById(`breadcrumb-${i}`);
+                el.classList.toggle('active', i <= currentStep);
+            }
+        }
+
+        // Tab Switching
+        function switchTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+            
+            document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(`panel-${tab}`).classList.add('active');
+        }
+
+        // File Upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                showToast(`File "${file.name}" uploaded successfully`, 'success');
+            }
+        }
+
+        // Analysis
+        function analyzeAndExtract() {
+            const rawInput = document.getElementById('rawInput').value;
+            const stakeholderInput = document.getElementById('stakeholderInput').value;
+            const transcriptInput = document.getElementById('transcriptInput').value;
+            const draftInput = document.getElementById('draftInput').value;
+
+            const allInput = [rawInput, stakeholderInput, transcriptInput, draftInput].filter(Boolean).join('\n');
+
+            if (!allInput.trim()) {
+                showToast('Please provide some input to analyze', 'warning');
+                return;
+            }
+
+            showLoading(true);
+
+            setTimeout(() => {
+                extractRequirements(allInput);
+                showLoading(false);
+                goToStep(2);
+                showToast('Requirements extracted successfully!', 'success');
+            }, 1500);
+        }
+
+        function extractRequirements(input) {
+            extractedRequirements = {
+                metrics: [
+                    { text: 'Pipeline total deals count', confidence: 'high', id: 'm1' },
+                    { text: 'Expected close dates tracking', confidence: 'high', id: 'm2' },
+                    { text: 'Rep quota achievement percentage', confidence: 'high', id: 'm3' },
+                    { text: 'Personal stats vs team average', confidence: 'medium', id: 'm4' },
+                    { text: 'Conversion rate by lead source', confidence: 'high', id: 'm5' },
+                    { text: 'Conversion rate by sales rep', confidence: 'high', id: 'm6' },
+                    { text: 'Conversion rate by deal size bucket', confidence: 'medium', id: 'm7' },
+                    { text: 'YTD revenue vs target', confidence: 'high', id: 'm8' },
+                    { text: 'Current quarter vs next quarter projections', confidence: 'high', id: 'm9' },
+                    { text: 'Rep performance ranking', confidence: 'high', id: 'm10' },
+                    { text: 'Churn risk scoring for accounts', confidence: 'medium', id: 'm11' }
+                ],
+                roles: [
+                    { text: 'Sales Rep - personal dashboard view', confidence: 'high', id: 'r1' },
+                    { text: 'Sales Manager - team overview', confidence: 'high', id: 'r2' },
+                    { text: 'Executive - company-wide metrics', confidence: 'high', id: 'r3' },
+                    { text: 'Finance - revenue and forecasting access', confidence: 'medium', id: 'r4' }
+                ],
+                sources: [
+                    { text: 'Salesforce CRM integration', confidence: 'high', id: 's1' },
+                    { text: 'Historical data - minimum 2 years', confidence: 'high', id: 's2' },
+                    { text: 'Territory/region mapping data', confidence: 'medium', id: 's3' }
+                ],
+                features: [
+                    { text: 'Mobile responsive/app access', confidence: 'high', id: 'f1' },
+                    { text: 'Email alerts for stage changes', confidence: 'high', id: 'f2' },
+                    { text: 'Email alerts for cold deals (7+ days inactive)', confidence: 'high', id: 'f3' },
+                    { text: 'Top 10 deals view with probability scores', confidence: 'high', id: 'f4' },
+                    { text: 'Audit trail for deal value changes', confidence: 'high', id: 'f5' },
+                    { text: 'Territory mapping visualization', confidence: 'medium', id: 'f6' },
+                    { text: 'Export to Excel functionality', confidence: 'low', id: 'f7' }
+                ],
+                constraints: [
+                    { text: 'Dashboard load time under 3 seconds', confidence: 'high', id: 'c1' },
+                    { text: 'Deadline: End of Q2', confidence: 'high', id: 'c2' },
+                    { text: 'Compliance requirements for audit trail', confidence: 'high', id: 'c3' },
+                    { text: 'Budget confirmation pending', confidence: 'low', id: 'c4' }
+                ]
+            };
+
+            renderCategories();
+            generateChatQuestions();
+            updateStats();
+        }
+
+        function renderCategories() {
+            const grid = document.getElementById('categoriesGrid');
+            const categories = [
+                { key: 'metrics', title: 'Metrics / KPIs', class: 'metrics' },
+                { key: 'roles', title: 'User Roles', class: 'roles' },
+                { key: 'sources', title: 'Data Sources', class: 'sources' },
+                { key: 'features', title: 'Feature Requests', class: 'features' },
+                { key: 'constraints', title: 'Constraints', class: 'constraints' }
+            ];
+
+            grid.innerHTML = categories.map(cat => `
+                <div class="card category-card ${cat.class}">
+                    <div class="category-header">
+                        <span class="category-title">
+                            ${getCategoryIcon(cat.key)}
+                            ${cat.title}
+                        </span>
+                        <span class="category-count">${extractedRequirements[cat.key].length} items</span>
+                    </div>
+                    <div class="category-items">
+                        ${extractedRequirements[cat.key].map((item, index) => `
+                            <div class="requirement-item" style="animation-delay: ${index * 0.05}s">
+                                <div class="requirement-content">
+                                    <div class="requirement-text">
+                                        <input type="text" value="${item.text}" onchange="updateRequirement('${cat.key}', '${item.id}', this.value)">
+                                    </div>
+                                    <span class="confidence-badge ${item.confidence}">${item.confidence} confidence</span>
+                                </div>
+                                <div class="requirement-actions">
+                                    <button class="action-btn resolve" onclick="resolveItem('${cat.key}', '${item.id}')" title="Mark as resolved">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                    </button>
+                                    <button class="action-btn flag" onclick="flagItem('${cat.key}', '${item.id}')" title="Flag for review">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                                            <line x1="4" y1="22" x2="4" y2="15"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getCategoryIcon(key) {
+            const icons = {
+                metrics: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+                roles: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+                sources: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+                features: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+                constraints: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+            };
+            return icons[key] || '';
+        }
+
+        function updateStats() {
+            let total = 0;
+            let high = 0;
+            Object.values(extractedRequirements).forEach(cat => {
+                total += cat.length;
+                high += cat.filter(item => item.confidence === 'high').length;
+            });
+            document.getElementById('totalExtracted').textContent = total;
+            document.getElementById('highConfidence').textContent = high;
+        }
+
+        function updateRequirement(category, id, value) {
+            const item = extractedRequirements[category].find(i => i.id === id);
+            if (item) {
+                item.text = value;
+                showToast('Requirement updated', 'success');
+            }
+        }
+
+        function resolveItem(category, id) {
+            extractedRequirements[category] = extractedRequirements[category].filter(i => i.id !== id);
+            renderCategories();
+            updateStats();
+            showToast('Item marked as resolved', 'success');
+        }
+
+        function flagItem(category, id) {
+            const item = extractedRequirements[category].find(i => i.id === id);
+            if (item && !flaggedItems.find(f => f.id === id)) {
+                flaggedItems.push({ ...item, category });
+                updateFlaggedList();
+                showToast('Item flagged for review', 'warning');
+            }
+        }
+
+        // Chat / Refinement
+        function generateChatQuestions() {
+            chatQuestions = [
+                "I noticed mentions of 'budget confirmation pending'. Do you have an estimated budget range for this project?",
+                "The performance requirement mentions 'under 3 seconds load time'. Is this for initial load or also for data refresh?",
+                "For the mobile access requirement - should this be a responsive web app, native mobile app, or both?",
+                "The audit trail requirement mentions compliance. Which specific compliance frameworks need to be addressed (SOC2, GDPR, etc.)?",
+                "For the churn risk scoring - what factors should be considered? Any existing model to integrate with?",
+                "The territory mapping shows issues with midwest region data. Can you describe the current data quality issues?",
+                "Email alerts are requested for deal stage changes. What should be the notification frequency - immediate, daily digest, or configurable?"
+            ];
+            currentQuestionIndex = 0;
+            addAIMessage(chatQuestions[0]);
+            updateChatProgress();
+        }
+
+        function addAIMessage(message) {
+            const container = document.getElementById('chatMessages');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            container.innerHTML += `
+                <div class="chat-message ai">
+                    <div class="chat-bubble">${message}</div>
+                    <div class="chat-time">${time}</div>
+                </div>
+            `;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addUserMessage(message) {
+            const container = document.getElementById('chatMessages');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            container.innerHTML += `
+                <div class="chat-message user">
+                    <div class="chat-bubble">${message}</div>
+                    <div class="chat-time">${time}</div>
+                </div>
+            `;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addUserMessage(message);
+            answeredQuestions.push({
+                question: chatQuestions[currentQuestionIndex],
+                answer: message
+            });
+            updateAnsweredList();
+            input.value = '';
+
+            currentQuestionIndex++;
+            updateChatProgress();
+
+            if (currentQuestionIndex < chatQuestions.length) {
+                setTimeout(() => {
+                    addAIMessage(chatQuestions[currentQuestionIndex]);
+                }, 800);
+            } else {
+                setTimeout(() => {
+                    addAIMessage("Thank you! I have all the information needed to generate a comprehensive PRD. Click 'Generate PRD' when you're ready.");
+                    document.getElementById('generatePrdBtn').disabled = false;
+                }, 800);
+            }
+        }
+
+        function skipQuestion() {
+            answeredQuestions.push({
+                question: chatQuestions[currentQuestionIndex],
+                answer: '[Skipped]'
+            });
+            updateAnsweredList();
+
+            currentQuestionIndex++;
+            updateChatProgress();
+
+            if (currentQuestionIndex < chatQuestions.length) {
+                addAIMessage(chatQuestions[currentQuestionIndex]);
+            } else {
+                addAIMessage("All questions covered. Click 'Generate PRD' when you're ready.");
+                document.getElementById('generatePrdBtn').disabled = false;
+            }
+        }
+
+        function handleChatKeypress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        function updateChatProgress() {
+            const progress = (currentQuestionIndex / chatQuestions.length) * 100;
+            document.getElementById('chatProgress').style.width = `${progress}%`;
+        }
+
+        function updateAnsweredList() {
+            const list = document.getElementById('answeredList');
+            if (answeredQuestions.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <p>No questions answered yet</p>
+                    </div>
+                `;
+            } else {
+                list.innerHTML = answeredQuestions.map(q => `
+                    <div class="panel-item">${q.answer === '[Skipped]' ? '⏭️' : '✓'} ${q.question.substring(0, 50)}...</div>
+                `).join('');
+            }
+        }
+
+        function updateFlaggedList() {
+            const list = document.getElementById('flaggedList');
+            if (flaggedItems.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                            <line x1="4" y1="22" x2="4" y2="15"/>
+                        </svg>
+                        <p>No flagged items</p>
+                    </div>
+                `;
+            } else {
+                list.innerHTML = flaggedItems.map(item => `
+                    <div class="panel-item">🚩 ${item.text.substring(0, 40)}...</div>
+                `).join('');
+            }
+        }
+
+        // PRD Generation
+        function generatePRD() {
+            showLoading(true);
+            setTimeout(() => {
+                renderPRD();
+                showLoading(false);
+                goToStep(4);
+                showToast('PRD generated successfully!', 'success');
+            }, 2000);
+        }
+
+        function renderPRD() {
+            const totalReqs = Object.values(extractedRequirements).reduce((sum, cat) => sum + cat.length, 0);
+            document.getElementById('prdReqCount').textContent = `${totalReqs} Requirements`;
+            document.getElementById('prdDate').textContent = `Generated ${new Date().toLocaleDateString()}`;
+
+            const sections = [
+                {
+                    title: 'Executive Summary',
+                    icon: 'purple',
+                    iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+                    content: `<p class="section-text">This PRD outlines the requirements for the Sales Dashboard Redesign project. The dashboard will serve multiple user roles (Sales Reps, Managers, Executives, Finance) and integrate with Salesforce CRM. Key objectives include improving pipeline visibility, enabling mobile access, and meeting performance requirements of under 3-second load times.</p>`
+                },
+                {
+                    title: 'Key Metrics & KPIs',
+                    icon: 'purple',
+                    iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+                    content: `<ul class="section-list">${extractedRequirements.metrics.map(m => `<li>${m.text}</li>`).join('')}</ul>`
+                },
+                {
+                    title: 'User Roles & Permissions',
+                    icon: 'green',
+                    iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+                    content: `
+                        <table class="prd-table">
+                            <thead>
+                                <tr><th>Role</th><th>Access Level</th><th>Key Features</th></tr>
+                            </thead>
+                            <tbody>
+                                ${extractedRequirements.roles.map(r => `
+                                    <tr>
+                                        <td>${r.text.split(' - ')[0]}</td>
+                                        <td><span class="confidence-badge ${r.confidence}">${r.confidence}</span></td>
+                                        <td>${r.text.split(' - ')[1] || 'Standard access'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `
+                },
+                {
+                    title: 'Feature Requirements',
+                    icon: 'blue',
+                    iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+                    content: `
+                        <table class="prd-table">
+                            <thead>
+                                <tr><th>Feature</th><th>Priority</th><th>Confidence</th></tr>
+                            </thead>
+                            <tbody>
+                                ${extractedRequirements.features.map(f => `
+                                    <tr>
+                                        <td>${f.text}</td>
+                                        <td><span class="priority-badge ${f.confidence === 'high' ? 'high' : f.confidence === 'medium' ? 'medium' : 'low'}">${f.confidence === 'high' ? 'P1' : f.confidence === 'medium' ? 'P2' : 'P3'}</span></td>
+                                        <td><span class="confidence-badge ${f.confidence}">${f.confidence}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `
+                },
+                {
+                    title: 'Data Sources & Integrations',
+                    icon: 'blue',
+                    iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+                    content: `<ul class="section-list">${extractedRequirements.sources.map(s => `<li>${s.text}</li>`).join('')}</ul>`
+                },
+                {
+                    title: 'Constraints & Requirements',
+                    icon: 'orange',
+                    iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+                    content: `<ul class="section-list">${extractedRequirements.constraints.map(c => `<li>${c.text}</li>`).join('')}</ul>`
+                },
+                {
+                    title: 'Clarifications & Decisions',
+                    icon: 'purple',
+                    iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+                    content: answeredQuestions.length > 0 ? `
+                        <table class="prd-table">
+                            <thead>
+                                <tr><th>Question</th><th>Response</th></tr>
+                            </thead>
+                            <tbody>
+                                ${answeredQuestions.map(q => `
+                                    <tr>
+                                        <td>${q.question}</td>
+                                        <td>${q.answer}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<p class="section-text">No clarification questions were addressed.</p>'
+                }
+            ];
+
+            document.getElementById('prdSections').innerHTML = sections.map((section, index) => `
+                <div class="card prd-section ${index === 0 ? 'open' : ''}" style="animation: staggerFadeIn 0.3s ease ${index * 0.1}s backwards">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="section-icon ${section.icon}">${section.iconSvg}</div>
+                        <span class="section-title">${section.title}</span>
+                        <span class="section-chevron">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="section-content">${section.content}</div>
+                </div>
+            `).join('');
+        }
+
+        function toggleSection(header) {
+            const section = header.parentElement;
+            section.classList.toggle('open');
+        }
+
+        // Export Functions
+        function exportPRD(format) {
+            const data = {
+                title: 'Sales Dashboard Redesign PRD',
+                date: new Date().toISOString(),
+                requirements: extractedRequirements,
+                clarifications: answeredQuestions,
+                flaggedItems: flaggedItems
+            };
+
+            if (format === 'json') {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                downloadFile(blob, 'sales-dashboard-prd.json');
+            } else {
+                const markdown = generateMarkdown(data);
+                const blob = new Blob([markdown], { type: 'text/markdown' });
+                downloadFile(blob, 'sales-dashboard-prd.md');
+            }
+            showToast(`PRD exported as ${format.toUpperCase()}`, 'success');
+        }
+
+        function generateMarkdown(data) {
+            let md = `# ${data.title}\n\n`;
+            md += `Generated: ${new Date(data.date).toLocaleDateString()}\n\n`;
+            md += `## Executive Summary\n\nThis PRD outlines the requirements for the Sales Dashboard Redesign project.\n\n`;
+            
+            md += `## Metrics & KPIs\n\n`;
+            data.requirements.metrics.forEach(m => md += `- ${m.text}\n`);
+            
+            md += `\n## User Roles\n\n`;
+            data.requirements.roles.forEach(r => md += `- ${r.text}\n`);
+            
+            md += `\n## Features\n\n`;
+            data.requirements.features.forEach(f => md += `- ${f.text}\n`);
+            
+            md += `\n## Data Sources\n\n`;
+            data.requirements.sources.forEach(s => md += `- ${s.text}\n`);
+            
+            md += `\n## Constraints\n\n`;
+            data.requirements.constraints.forEach(c => md += `- ${c.text}\n`);
+            
+            if (data.clarifications.length > 0) {
+                md += `\n## Clarifications\n\n`;
+                data.clarifications.forEach(q => md += `**Q:** ${q.question}\n**A:** ${q.answer}\n\n`);
+            }
+            
+            return md;
+        }
+
+        function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function copyPRD() {
+            const data = {
+                title: 'Sales Dashboard Redesign PRD',
+                requirements: extractedRequirements,
+                clarifications: answeredQuestions
+            };
+            const markdown = generateMarkdown(data);
+            navigator.clipboard.writeText(markdown).then(() => {
+                showToast('PRD copied to clipboard!', 'success');
+            });
+        }
+
+        // Utilities
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').classList.toggle('active', show);
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+                error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+            };
+            
+            toast.innerHTML = `${icons[type]}<span class="toast-message">${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'toastSlideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ===== SETTINGS MODAL =====
+        const settingsDefaults = {
+            notifExtraction: true,
+            notifPrd: true,
+            notifSystem: false,
+            refresh: 'realtime',
+            exportMd: true,
+            exportPdf: false,
+            confidence: 70
+        };
+
+        function loadSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('architect_settings') || '{}');
+                const s = { ...settingsDefaults, ...saved };
+                document.getElementById('setting-notif-extraction').checked = s.notifExtraction;
+                document.getElementById('setting-notif-prd').checked = s.notifPrd;
+                document.getElementById('setting-notif-system').checked = s.notifSystem;
+                document.getElementById('setting-refresh').value = s.refresh;
+                document.getElementById('setting-export-md').checked = s.exportMd;
+                document.getElementById('setting-export-pdf').checked = s.exportPdf;
+                const slider = document.getElementById('setting-confidence');
+                slider.value = s.confidence;
+                document.getElementById('confidenceVal').textContent = s.confidence + '%';
+            } catch(e) {}
+        }
+
+        function openSettings() {
+            loadSettings();
+            const modal = document.getElementById('settingsModal');
+            modal.classList.add('active');
+            setTimeout(() => {
+                const firstFocusable = modal.querySelector('input, select, button');
+                if (firstFocusable) firstFocusable.focus();
+            }, 50);
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function handleModalOverlayClick(e) {
+            if (e.target === document.getElementById('settingsModal')) {
+                closeSettings();
+            }
+        }
+
+        function saveSettings() {
+            const s = {
+                notifExtraction: document.getElementById('setting-notif-extraction').checked,
+                notifPrd: document.getElementById('setting-notif-prd').checked,
+                notifSystem: document.getElementById('setting-notif-system').checked,
+                refresh: document.getElementById('setting-refresh').value,
+                exportMd: document.getElementById('setting-export-md').checked,
+                exportPdf: document.getElementById('setting-export-pdf').checked,
+                confidence: parseInt(document.getElementById('setting-confidence').value)
+            };
+            localStorage.setItem('architect_settings', JSON.stringify(s));
+            closeSettings();
+            showToast('Settings saved successfully', 'success');
+        }
+
+        // ESC key closes modal / notif panel
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeSettings();
+                closeNotifPanel();
+            }
+        });
+
+        // ===== NOTIFICATIONS PANEL =====
+        let notifications = [
+            { id: 1, type: 'success', icon: 'check', msg: 'Requirements extracted — 28 items across 5 categories', time: '2 min ago', unread: true },
+            { id: 2, type: 'purple', icon: 'sparkle', msg: 'Refinement questions ready — 7 gaps identified for review', time: '5 min ago', unread: true },
+            { id: 3, type: 'blue', icon: 'export', msg: 'PRD exported as Markdown — sales-dashboard-prd.md', time: '12 min ago', unread: true },
+            { id: 4, type: 'warning', icon: 'flag', msg: '3 requirements flagged for stakeholder review', time: '18 min ago', unread: false },
+            { id: 5, type: 'success', icon: 'check', msg: 'Session auto-saved to local storage', time: '24 min ago', unread: false },
+            { id: 6, type: 'purple', icon: 'sparkle', msg: 'PRD generation complete — 6 sections compiled', time: '31 min ago', unread: false }
+        ];
+
+        const notifIcons = {
+            check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+            sparkle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/></svg>',
+            export: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+            flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>'
+        };
+
+        function renderNotifications() {
+            const list = document.getElementById('notifList');
+            list.innerHTML = notifications.map(n => `
+                <div class="notif-item ${n.unread ? 'unread' : ''}" onclick="markRead(${n.id})">
+                    <div class="notif-icon-wrap ${n.type}">${notifIcons[n.icon]}</div>
+                    <div class="notif-body">
+                        <div class="notif-msg">${n.msg}</div>
+                        <div class="notif-time">${n.time}</div>
+                    </div>
+                </div>
+            `).join('');
+            updateNotifBadge();
+        }
+
+        function updateNotifBadge() {
+            const unread = notifications.filter(n => n.unread).length;
+            const badge = document.getElementById('notifBadge');
+            const countEl = document.getElementById('notifUnreadCount');
+            if (unread === 0) {
+                badge.classList.add('hidden');
+                countEl.textContent = 'All read';
+            } else {
+                badge.classList.remove('hidden');
+                badge.textContent = unread;
+                countEl.textContent = unread + ' unread';
+            }
+        }
+
+        function toggleNotifPanel(e) {
+            e.stopPropagation();
+            const panel = document.getElementById('notifPanel');
+            const isActive = panel.classList.contains('active');
+            closeNotifPanel();
+            if (!isActive) {
+                renderNotifications();
+                panel.classList.add('active');
+            }
+        }
+
+        function closeNotifPanel() {
+            document.getElementById('notifPanel').classList.remove('active');
+        }
+
+        function markRead(id) {
+            const n = notifications.find(n => n.id === id);
+            if (n) n.unread = false;
+            renderNotifications();
+        }
+
+        function markAllRead() {
+            notifications.forEach(n => n.unread = false);
+            renderNotifications();
+            showToast('All notifications marked as read', 'success');
+        }
+
+        // Close notif panel when clicking outside
+        document.addEventListener('click', (e) => {
+            const wrapper = document.getElementById('notifWrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                closeNotifPanel();
+            }
+        });
+    </script>
+</body>
+</html>
